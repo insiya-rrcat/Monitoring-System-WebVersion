@@ -63,10 +63,10 @@ class MonitoringSystem(QMainWindow):
         self.fetch_info.setStyleSheet("font-style: italic;  font-weight: 600;  opacity: .5; font-size: 12px") 
 
         self.plot_temp = QPushButton("Plot Temperature") 
-        self.plot_temp.clicked.connect(self.plot_current_trip)
+        self.plot_temp.clicked.connect(self.plot_temperature_current_trip)
 
         self.plot_hum = QPushButton("Plot Humidity") 
-        self.plot_hum.clicked.connect(self.plot_current_trip)
+        self.plot_hum.clicked.connect(self.plot_humidity_current_trip)
 
         self.map_button = QPushButton("Show Latest Location")
         self.map_button.clicked.connect(self.show_latest_location)
@@ -429,8 +429,8 @@ class MonitoringSystem(QMainWindow):
         try:
             connection = mysql.connector.connect(
                 host="localhost",
-                user="insiya",
-                password="Insiya@123",
+                user="root",
+                password="mysql123",
                 database="monitoring_sys"
             )
             cursor = connection.cursor()
@@ -458,41 +458,41 @@ class MonitoringSystem(QMainWindow):
         except mysql.connector.Error as err:
             QMessageBox.critical(self, "Database Error", f"Error: {err}")
 
-        def plot_humidity_current_trip(self):
-            if not self.current_trip_id:
-                QMessageBox.warning(self, "No Trip", "No active trip to plot.")
+    def plot_humidity_current_trip(self):
+        if not self.current_trip_id:
+            QMessageBox.warning(self, "No Trip", "No active trip to plot.")
+            return
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="mysql123",
+                database="monitoring_sys"
+            )
+            cursor = connection.cursor()
+            cursor.execute("SELECT Timestamp, RH FROM parameters WHERE trip_id = %s ORDER BY Timestamp", (self.current_trip_id,))
+            rows = cursor.fetchall()
+            cursor.close()
+            connection.close()
+
+            if not rows:
+                QMessageBox.warning(self, "No Data", "No humidity data found for the current trip.")
                 return
-            try:
-                connection = mysql.connector.connect(
-                    host="localhost",
-                    user="insiya",
-                    password="Insiya@123",
-                    database="monitoring_sys"
-                )
-                cursor = connection.cursor()
-                cursor.execute("SELECT Timestamp, RH FROM parameters WHERE trip_id = %s ORDER BY Timestamp", (self.current_trip_id,))
-                rows = cursor.fetchall()
-                cursor.close()
-                connection.close()
 
-                if not rows:
-                    QMessageBox.warning(self, "No Data", "No humidity data found for the current trip.")
-                    return
+            timestamps, RH_values = zip(*rows)
 
-                timestamps, RH_values = zip(*rows)
+            plt.figure(figsize=(10, 5))
+            plt.plot(timestamps, RH_values, marker='o', linestyle='-', color='b', label='Humidity (RH)')
+            plt.xlabel("Time")
+            plt.ylabel("Humidity (%)")
+            plt.title("Humidity Over Current Trip")
+            plt.legend()
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            plt.show()
 
-                plt.figure(figsize=(10, 5))
-                plt.plot(timestamps, RH_values, marker='o', linestyle='-', color='b', label='Humidity (RH)')
-                plt.xlabel("Time")
-                plt.ylabel("Humidity (%)")
-                plt.title("Humidity Over Current Trip")
-                plt.legend()
-                plt.xticks(rotation=45)
-                plt.tight_layout()
-                plt.show()
-
-            except mysql.connector.Error as err:
-                QMessageBox.critical(self, "Database Error", f"Error: {err}")
+        except mysql.connector.Error as err:
+            QMessageBox.critical(self, "Database Error", f"Error: {err}")
 
           
     def show_latest_location(self):
